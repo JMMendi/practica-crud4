@@ -2,22 +2,26 @@
 
 namespace App\Db;
 
+use App\Utils\Datos;
+use PDO;
 use PDOException;
 
 class Articulo extends Conexion {
     private int $id;
     private string $nombre;
     private string $descripcion;
+    private string $disponible;
     private int $categoria_id;
 
     public function create() : void {
-        $q = "insert into articulos(nombre, descripcion, categoria_id) values (:n, :d, :c)";
+        $q = "insert into articulos(nombre, descripcion, disponible, categoria_id) values (:n, :d, :di, :c)";
         $stmt = parent::getConexion()->prepare($q);
 
         try {
             $stmt->execute([
                 ':n' => $this->nombre,
                 ':d' => $this->descripcion,
+                ':di' => $this->disponible,
                 ':c' => $this->categoria_id
             ]);
         } catch (PDOException $ex) {
@@ -27,16 +31,35 @@ class Articulo extends Conexion {
         }
     }
 
+    public static function read() : array {
+        $q = "select articulos.*, categorias.nombre as nomcat from articulos, categorias where (categoria_id = categorias.id) order by nomcat";
+        $stmt = parent::getConexion()->prepare($q);
+
+        try {
+            $stmt->execute();
+        } catch (PDOException $ex) {
+            throw new PDOException("Error en el read: " .$ex->getMessage(), -1);
+        } finally {
+            parent::cerrarConexion();
+        }
+
+        return $stmt->fetchAll(PDO::FETCH_OBJ);
+    }
+
     public static function crearArticulosRandom(int $cantidad) : void {
         $faker = \Faker\Factory::create("es_ES");
+        $categoriasID = Categoria::devolverArrayId();
 
         for ($i = 0 ; $i < $cantidad ; $i++) {
-            $nombre = $faker->unique()->sentence(5);
+            $nombre = ucwords($faker->unique()->words(random_int(2,3), true));
             $descripcion = $faker->text();
-            $categoria_id = $faker->randomElement(Categoria::devolverArrayId());
+            $disponible = $faker->randomElement(Datos::getDisponibles());
+            $categoria_id = $faker->randomElement($categoriasID);
+
             (new Articulo)
             ->setNombre($nombre)
             ->setDescripcion($descripcion)
+            ->setDisponible($disponible)
             ->setCategoriaId($categoria_id)
             ->create();
         }
@@ -110,6 +133,24 @@ class Articulo extends Conexion {
     public function setCategoriaId(int $categoria_id): self
     {
         $this->categoria_id = $categoria_id;
+
+        return $this;
+    }
+
+    /**
+     * Get the value of disponible
+     */
+    public function getDisponible(): string
+    {
+        return $this->disponible;
+    }
+
+    /**
+     * Set the value of disponible
+     */
+    public function setDisponible(string $disponible): self
+    {
+        $this->disponible = $disponible;
 
         return $this;
     }

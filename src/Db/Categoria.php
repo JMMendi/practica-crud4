@@ -35,7 +35,24 @@ class Categoria extends Conexion {
             ->create();
         }
     }
+    // -----------------------------------
 
+    public static function read() : array{
+        $q = "select * from categorias order by nombre";
+        $stmt = parent::getConexion()->prepare($q);
+
+        try {
+            $stmt->execute();
+        } catch (PDOException $ex) {
+            throw new PDOException("Error en el create: " . $ex->getMessage(), -1);
+        } finally {
+            parent::cerrarConexion();
+        }
+
+        return $stmt->fetchAll(PDO::FETCH_OBJ);
+    }
+
+    // -----------------------------------
     public static function devolverArrayId() : array {
         $q = "select id from categorias";
         $stmt = parent::getConexion()->prepare($q);
