@@ -2,6 +2,7 @@
 
 namespace App\Utils;
 
+use App\Db\Articulo;
 use App\Db\Categoria;
 
 class Validaciones {
@@ -11,7 +12,7 @@ class Validaciones {
 
     public static function isLongitudValida(string $nomCampo, string $valor, int $min, int $max) : bool {
         if (strlen($valor) < $min || strlen($valor) > $max) {
-            $_SESSION["err_$nomCampo"] = "*** Error, el $nomCampo debe tener entre $min y $max caracteres. ***";
+            $_SESSION["err_$nomCampo"] = "*** Error, el campo $nomCampo debe tener entre $min y $max caracteres. ***";
             return false;
         }
         return true;
@@ -25,7 +26,15 @@ class Validaciones {
         return true;
     }
 
-    public static function idValido(string $valor) : bool {
+    public static function existeNombre(string $nombre, ?int $id = null) : bool {
+        if (Articulo::existeNombre($nombre, $id)) {
+            $_SESSION['err_nombre'] = "*** ERROR, el nombre {$nombre} está duplicado. ***";
+            return true;
+        }
+        return false;
+    }
+
+    public static function idValido(int $valor) : bool {
         $categorias = Categoria::devolverArrayId();
         if (!in_array($valor, $categorias)) {
             $_SESSION['err_id'] = "*** ERROR, el id proporcionado no se corresponde con ninguna categoría. ***";
@@ -37,6 +46,7 @@ class Validaciones {
     public static function pintarErrores(string $nomCampo) {
         if (isset($_SESSION[$nomCampo])) {
             echo "<p class='mt-2 text-red-500 text-sm italic'>{$_SESSION[$nomCampo]}</p>";
+            unset($_SESSION[$nomCampo]);
         }
     }
 }

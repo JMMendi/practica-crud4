@@ -5,6 +5,7 @@ namespace App\Db;
 use App\Utils\Datos;
 use PDO;
 use PDOException;
+use stdClass;
 
 class Articulo extends Conexion {
     private int $id;
@@ -31,12 +32,13 @@ class Articulo extends Conexion {
         }
     }
 
-    public static function read() : array {
-        $q = "select articulos.*, categorias.nombre as nomcat from articulos, categorias where (categoria_id = categorias.id) order by nomcat";
+    public static function read(?int $id = null) : array {
+        $q = ($id === null) ? "select articulos.*, categorias.nombre as nomcat from articulos, categorias where (categoria_id = categorias.id) order by nomcat"
+        : "select * from articulos where (id = :i)";
         $stmt = parent::getConexion()->prepare($q);
 
         try {
-            $stmt->execute();
+            ($id === null) ? $stmt->execute() : $stmt->execute([':i' => $id]);
         } catch (PDOException $ex) {
             throw new PDOException("Error en el read: " .$ex->getMessage(), -1);
         } finally {
@@ -44,6 +46,81 @@ class Articulo extends Conexion {
         }
 
         return $stmt->fetchAll(PDO::FETCH_OBJ);
+    }
+
+    public static function delete(int $id) : void {
+        $q = "delete from articulos where id = :i";
+        $stmt = parent::getConexion()->prepare($q);
+
+        try {
+            $stmt->execute([
+                ':i' => $id
+            ]);
+        } catch (PDOException $ex) {
+            throw new PDOException("Error en el delete: " . $ex->getMessage(), -1);
+        } finally {
+            parent::cerrarConexion();
+        }
+    }
+
+    public function update(int $id) : void {
+        $q = "update articulos set nombre=:n, descripcion=:d, disponible=:di, categoria_id=:c where id=:i";
+        $stmt = parent::getConexion()->prepare($q);
+
+        try {
+            $stmt->execute([
+                ':n' => $this->nombre,
+                ':d' => $this->descripcion,
+                ':di' => $this->disponible,
+                ':c' => $this->categoria_id,
+                ':i' => $id
+            ]);
+        } catch (PDOException $ex) {
+            throw new PDOException("Error en el create: " .$ex->getMessage(), -1);
+        } finally {
+            parent::cerrarConexion();
+        }
+    }
+
+    public static function getArticuloById(int $id) : false|stdClass {
+        $q = "select * from articulos where (id = :i)";
+        $stmt = parent::getConexion()->prepare($q);
+
+        try {
+            $stmt->execute([':i' => $id]);
+        } catch (PDOException $ex) {
+            throw new PDOException("Error en el getArticuloById: " .$ex->getMessage(), -1);
+        } finally {
+            parent::cerrarConexion();
+        }
+
+        $articulo = $stmt->fetch(PDO::FETCH_OBJ);
+        return $articulo;
+    }
+
+
+
+    public static function existeNombre(string $nombre, ?int $id = null) : bool {
+        $q = ($id === null) ? "select count(*) as total from articulos where nombre=:n" : "select count(*) as total from articulos where nombre=:n AND id <> :i";
+        $stmt = parent::getConexion()->prepare($q);
+
+        try {
+            ($id === null) ? $stmt->execute([
+                ':n' => $nombre
+            ]) :
+            $stmt->execute([
+                ':n' => $nombre,
+                ":i" => $id
+            ])
+            ;
+        } catch (PDOException $ex) {
+            throw new PDOException("Error en el existeNombre: " . $ex->getMessage(), -1);
+        } finally {
+            parent::cerrarConexion();
+        }
+
+        $filas = $stmt->fetchAll(PDO::FETCH_OBJ)[0]->total;
+        return $filas; // En php 0 lo interpreta como false y lo demás, como true.
     }
 
     public static function crearArticulosRandom(int $cantidad) : void {

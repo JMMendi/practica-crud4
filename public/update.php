@@ -5,19 +5,37 @@ use App\Db\Categoria;
 use App\Utils\Validaciones;
 
 session_start();
+
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!$id || $id <= 0) {
+    header("Location: articulo.php");
+    exit;
+}
+
 require __DIR__ . "/../vendor/autoload.php";
 
 $categorias = Categoria::read();
+
+$articulo = Articulo::read($id)[0];
+
+if (count(Articulo::read($id)) == 0) {
+    header("Location: articulo.php");
+    exit;
+}
+
+// Para el campo de tipo check
+$checkSi = ($articulo->disponible == 'SI') ? "checked" : "";
+$checkNo = ($articulo->disponible == 'NO') ? "checked" : "";
 
 if (isset($_POST['nombre'])) {
     // A sanear campos
     $nombre = Validaciones::sanearCadenas($_POST['nombre']);
     $descripcion = Validaciones::sanearCadenas($_POST['descripcion']);
     $categoria_id = (int) Validaciones::sanearCadenas($_POST['categoria_id']);
-    
+
     // Estas dos opciones son válidas, usaremos la segunda.
     // $disponible = (isset($_POST['disponible'])) ? Validaciones::sanearCadenas($_POST['disponible']) : -1;
-    
+
     $disponible = ($_POST['disponible']) ?? -1; // Esto es como el operador ternario pero más corto
     Validaciones::sanearCadenas($disponible);
 
@@ -27,7 +45,7 @@ if (isset($_POST['nombre'])) {
     if (!Validaciones::isLongitudValida('nombre', $nombre, 3, 40)) {
         $errores = true;
     } else {
-        if (Validaciones::existeNombre($nombre)) {
+        if (Validaciones::existeNombre($nombre, $id)) {
             $errores = true;
         }
     }
@@ -42,18 +60,18 @@ if (isset($_POST['nombre'])) {
     }
 
     if ($errores) {
-        header("Location: nuevo.php");
+        header("Location: update.php?id={$articulo->id}");
         exit;
     }
 
     (new Articulo)
-    ->setNombre($nombre)
-    ->setDescripcion($descripcion)
-    ->setDisponible($disponible)
-    ->setCategoriaId($categoria_id)
-    ->create();
+        ->setNombre($nombre)
+        ->setDescripcion($descripcion)
+        ->setDisponible($disponible)
+        ->setCategoriaId($categoria_id)
+        ->update($id);
 
-    $_SESSION['mensaje'] = "Artículo creado correctamente.";
+    $_SESSION['mensaje'] = "Artículo modificado correctamente.";
     header("Location:articulo.php");
 }
 ?>
@@ -65,7 +83,7 @@ if (isset($_POST['nombre'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Añadir</title>
+    <title>Editar</title>
     <!-- CDN sweetalert2 -->
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -79,17 +97,17 @@ if (isset($_POST['nombre'])) {
 </head>
 
 <body class="bg-purple-200 p-8">
-    <h3 class="py-2 text-center text-xl">Añadir Nuevo Articulo</h3>
+    <h3 class="py-2 text-center text-xl">Editar Articulo</h3>
     <div class="w-1/2 mx-auto border-2 rounded-xl p-4 shadow-xl border-black">
-        <form method="POST" action="nuevo.php">
+        <form method="POST" action="update.php?id=<?= $id ?>">
             <div class="mb-4">
                 <label for="nombre" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombre del Artículo</label>
-                <input type="text" id="nombre" name="nombre" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                <input type="text" id="nombre" name="nombre" value="<?= $articulo->nombre ?>" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
                 <?php Validaciones::pintarErrores('err_nombre') ?>
             </div>
             <div class="mb-4">
                 <label for="descripcion" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Descripción del Artículo</label>
-                <textarea id="descripcion" name="descripcion" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"></textarea>
+                <textarea id="descripcion" name="descripcion" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"><?= $articulo->descripcion ?></textarea>
                 <?php Validaciones::pintarErrores('err_descripcion') ?>
 
             </div>
@@ -98,9 +116,10 @@ if (isset($_POST['nombre'])) {
                 <select id="categoria_id" name="categoria_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
                     <option>___ ELIGE UNA CATEGORÍA ___</option>
                     <?php
+                    $cadena = ($categorias[0]->id == $articulo->categoria_id) ? "selected" : "";
                     foreach ($categorias as $item) {
                         echo <<< TXT
-                                <option value="{$item->id}">{$item->nombre}</option>
+                                <option $cadena value="{$item->id}">{$item->nombre}</option>
                             TXT;
                     }
                     ?>
@@ -114,11 +133,11 @@ if (isset($_POST['nombre'])) {
             <div class="flex">
 
                 <div class="flex items-center me-4">
-                    <input id="si" type="radio" value="SI" name="disponible" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <input id="si" type="radio" <?= $checkSi ?> value="SI" name="disponible" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                     <label for="si" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">SI</label>
                 </div>
                 <div class="flex items-center me-4">
-                    <input id="no" type="radio" value="NO" name="disponible" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <input id="no" type="radio" <?= $checkNo ?> value="NO" name="disponible" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                     <label for="no" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">NO</label>
                 </div>
             </div>
@@ -127,9 +146,6 @@ if (isset($_POST['nombre'])) {
             <div class="flex flex-row-reverse mb-2">
                 <button type="submit" class="font-bold text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
                     <i class="fas fa-save mr-2"></i>GUARDAR
-                </button>
-                <button type="reset" class="mr-2 font-bold text-white bg-yellow-700 hover:bg-yellow-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-                    <i class="fas fa-paintbrush mr-2"></i>RESET
                 </button>
                 <a href="articulo.php" class="mr-2 font-bold text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
                     <i class="fas fa-home mr-2"></i>VOLVER
