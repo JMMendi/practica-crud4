@@ -72,29 +72,30 @@ if (isset($_POST['id'])) {
             </thead>
             <tbody>
                 <?php
-                foreach ($articulos as $item) {
+                foreach ($articulos as $item) : // si en vez de llaves, ponemos un : y cerramos el php con un ?mayorque...
                     $color = ($item->disponible == 'SI') ? "bg-blue-500" : "bg-red-500";
-                    echo <<< TXT
+                    ?>
+                    <!-- Ponemos al final un endforeach y todo lo que había en llaves, abrimos y cerramos phps -->
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                             <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                {$item->nombre}
+                                <?= $item->nombre ?>
                             </th>
                             <td class="px-6 py-4">
-                                {$item->descripcion}
+                                <?= $item->descripcion ?>
                             </td>
                             <td class="px-6 py-4">
-                                {$item->nomcat}
+                                <?= $item->nomcat ?>
                             </td>
                             <td class="px-6 py-4">
                                 <form method='POST' action='articulo.php'>
-                                    <input type='hidden' name='id' value='{$item->id}'/>
-                                    <button class='w-full p-2 rounded-xl font-bold text-white {$color}'>{$item->disponible}</button>
+                                    <input type='hidden' name='id' value="<?= $item->id ?>"/>
+                                    <button class='w-full p-2 rounded-xl font-bold text-white <?= $color ?>'><?= $item->disponible ?></button>
                                 </form>
                             </td>
                             <td class="px-6 py-4">
                                 <form action="delete.php" method="POST">
-                                    <input type="hidden" name="id" value="{$item->id}"/>
-                                    <a href="update.php?id={$item->id}">
+                                    <input type="hidden" name="id" value="<?= $item->id ?>"/>
+                                    <a href="update.php?id=<?= $item->id ?>">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <button type="submit" onclick="return confirm('¿Borrar Artículo?')">
@@ -103,18 +104,15 @@ if (isset($_POST['id'])) {
                                 </form>
                             </td>
                         </tr>
-                    TXT;
-                }
-
-                ?>
+                <?php endforeach; ?>
 
             </tbody>
         </table>
         <!-- Fin Tabla Artículos -->
     </div>
+    <!-- Aquí podemos hacer lo de arriba igual, quitar el echo y hacerlo con phps -->
     <?php
-    if (isset($_SESSION['mensaje'])) {
-        echo <<< TXT
+    if (isset($_SESSION['mensaje'])) : ?>
                 <script>
                 Swal.fire({
                     icon: "success",
@@ -123,9 +121,9 @@ if (isset($_POST['id'])) {
                     timer: 1500
                 });
                 </script>
-            TXT;
+    <?php 
         unset($_SESSION['mensaje']);
-    }
+        endif; 
     ?>
 </body>
 
